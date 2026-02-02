@@ -292,6 +292,7 @@
                 <button
                   onClick={onClose}
                   className="opacity-50 hover:opacity-100"
+                  aria-label="Close alert"
                 >
                   <Icons.X />
                 </button>
@@ -356,6 +357,7 @@
                         className="px-3 py-1 border rounded text-sm w-64"
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
+                        aria-label="Search files"
                     />
                </div>
                <div className="border rounded-lg overflow-hidden bg-white max-h-[500px] overflow-y-auto">
@@ -382,6 +384,7 @@
                                             checked={s.move_required} 
                                             onChange={() => toggleMove(s)}
                                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            aria-label={`Select ${s.original_name}`}
                                         />
                                    </td>
                                    <td className="px-4 py-3 text-sm text-gray-900 truncate max-w-xs" title={s.original_path}>
@@ -824,6 +827,7 @@
                             <button
                               onClick={() => removeProtected(folder)}
                               className="hover:text-amber-900"
+                              aria-label={`Remove ${folder} from protected list`}
                             >
                               <Icons.X />
                             </button>
