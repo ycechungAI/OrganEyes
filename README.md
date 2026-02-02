@@ -1,4 +1,4 @@
-# 📂 organiZe
+# 📂 Organ Eyes
 
 A smart file organizer that automatically sorts your files into a clean **Category / Year** folder structure. Features both a command-line interface and a beginner-friendly web GUI.
 
