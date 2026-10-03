@@ -1,62 +1,50 @@
 # TODO
 
-## High Priority
+The design for the next releases is in [docs/SPEC.md](docs/SPEC.md). Work is tracked by **bug ID** ([docs/BUGS.md](docs/BUGS.md)) and **milestone** ([docs/ROADMAP.md](docs/ROADMAP.md)). The old ad-hoc items are mapped in [ROADMAP § Mapping from the old TODO.md](docs/ROADMAP.md#mapping-from-the-old-todomd).
 
-- [x] **Add progress bar to CLI script** (v0.1)
-  - Show progress during file scanning
-  - Show progress during file moves
-  - Display ETA for large operations
+## Done (v0.1)
 
-- [x] **Add progress bar to Web GUI** (v0.1)
-  - Visual progress indicator during analysis
-  - Real-time progress bar during file moves
-  - Show current file being processed
+- [x] Progress bar in CLI and Web GUI
+- [x] Interactive CLI review mode
+- [x] Year range grouping for old files (`--group-old`)
+- [x] Editable suggestions in Web GUI
+- [x] Symlink and hardlink deduplication in category stats
+- [x] Error handling: permission errors, retry on locked files, `--verbose`, `--log`
+- [x] ARIA labels for icon-only buttons
 
-- [ ] **Fix remaining file size summary bug**
-  - ~~Symlink/hardlink deduplication~~ — done via `lstat()` + `seen_inodes`
-  - BUG: `_build_report()` sums raw `f["size"]` instead of `effective_size`, inflating totals
-  - Store `effective_size` in each `file_info` dict and use it for the summary total
-  - Add sanity check: warn if total exceeds drive capacity (`shutil.disk_usage`)
+## v0.2 — Safe by default (next)
 
-- [ ] **Fix dead GET `/api/analyze` endpoint**
-  - `_run_analysis()` at line 1029 is a no-op (`pass`)
-  - Remove the method or wire it to the async thread flow
+- [ ] Package split + `file_organizer.py` shim
+- [ ] B01 path containment & name validation
+- [ ] B02 / B07 / B15 undo v2 (no-clobber, run-id only, journaled mkdir cleanup)
+- [ ] B03 / B04 / B12–B14 / B26 / B27 server hardening (loopback, token, no static fallback, JobManager)
+- [ ] B05 bundle & project guard (interim)
+- [ ] B06 / B11 / B32 symlink, hardlink & special-file handling
+- [ ] B08 / B09 write-ahead journal in State dir + recovery + self-exclusion
+- [ ] B10 untrack `organizer_report.json` + CI hygiene check
+- [ ] B16 plan validation (collisions, case-fold, fingerprints, free space)
+- [ ] B17 filename normalization rules
+- [ ] B18 `skipped_depth` reporting, unified default depth
+- [ ] B19 / B31 protection globs, cloud & library defaults, placeholder skip
+- [ ] B28 / B33 / B34 / B35 CLI subcommands, Reporter events, exit codes
+- [ ] Test suite + CI matrix ([docs/specs/06-testing.md](docs/specs/06-testing.md))
 
-## Medium Priority
+## v0.3 — Smart Detection I
 
-- [ ] **Editable suggestions in CLI (export/import)**
-  - GUI already supports inline editing and checkboxes
-  - Add `--export-plan plan.json` to save suggestions after analysis
-  - Add `--import-plan plan.json` to load edited suggestions for execution
+- [ ] Detector framework + metadata cache
+- [ ] Full unit detection (bundles, projects, libraries, DCIM, sidecars)
+- [ ] B30 date resolution chain (EXIF, mvhd, doc metadata, filename, birthtime)
+- [ ] Content sniffing + extension-mismatch warnings
+- [ ] Taxonomy v2 + explainability (`reasons[]`, `plan --explain`)
+- [ ] Optional extras `[exif]`, `[media]`, `[magic]` + `organeyes doctor`
 
-- [ ] **Add `--group-old` toggle to Web GUI**
-  - CLI supports `--group-old` but the GUI has no toggle for it
-  - `_run_analysis_thread` never passes `group_old_files` to `FileOrganizer`
-  - Add checkbox in Settings section, pass value through to the analyzer
+## v0.4 — Smart Detection II + GUI/API
 
-- [ ] **Fix HTML file serving path**
-  - `_serve_html()` looks for `organizer_preview.html` in the target folder (`server_root`)
-  - Should locate it relative to the script: `Path(__file__).parent / 'organizer_preview.html'`
+- [ ] Duplicate detection, keeper ranking, opt-in quarantine
+- [ ] Plan export/import (JSON, CSV)
+- [ ] HTTP API v2
+- [ ] GUI fixes G-1…G-15 (B20–B25, B29)
 
-- [ ] **Improve error reporting in GUI**
-  - Show moved/failed/skipped breakdown after execution (not just generic success)
-  - Display permission errors clearly in the UI
-  - Data already exists in `TASK_STATUS["result"]` but frontend ignores it
+## v0.5 — Optional AI
 
-## Future Enhancements
-
-- [x] **Year range grouping for old files** (v0.1)
-  - `--group-old` flag with decade grouping
-
-- [x] **Interactive CLI mode for reviewing changes** (v0.1)
-  - Menu to View/Skip/Rename files before execution
-  - Filter view by category
-
-- [ ] Custom category rules (user-defined extension mappings via config file)
-- [ ] Date grouping options (by month, by quarter)
-- [ ] Duplicate file detection (hash-based, report-only)
-- [ ] File preview in GUI before moving
-- [ ] Batch rename patterns (e.g., `photo_001.jpg`)
-- [ ] Export move plan to CSV
-- [ ] Dark mode for GUI
-- [ ] Keyboard shortcuts in GUI (j/k navigation, space to toggle, enter to confirm)
+- [ ] `[ai]` extra: metadata-only fallback classifier, cost preview, cache
