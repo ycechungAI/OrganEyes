@@ -8,7 +8,12 @@ Duplicate detection is the most requested feature with real destructive potentia
 ## Decision
 - Duplicate detection is **report-only** by default.
 - The only action OrganEyes offers is an opt-in **quarantine**: a journaled move of the extras into `_Duplicates/<keeper-stem>/…`, which is undoable like any move.
-- OrganEyes contains **no code path that deletes user files**. A CI static check enforces this ([06 § 5](../specs/06-testing.md#5-static-checks)). Users empty `_Duplicates/` themselves, in Finder or Explorer, after review.
+- OrganEyes **never destroys the last copy of any user data**. Precisely, the only removal operations allowed are:
+  1. `unlink(src)` as the final step of a move, after `dst` is a verified copy (cross-device: size plus hash) or a hardlink to the same inode (link-then-unlink);
+  2. `unlink` of OrganEyes's own temp files (`*.organeyes-partial-*`, `*.organeyes-tmp-*`, probe files);
+  3. `rmdir` of **empty** directories that were journaled as created or pruned by OrganEyes.
+
+  These all live in one module, `fsutil.py`, behind three named functions. A CI check enforces that no other `unlink`/`remove`/`rmdir`/`rmtree` call exists ([06 § 5](../specs/06-testing.md#5-static-checks)), and property tests check the "content multiset never shrinks" invariant. Duplicates are never removed. Users empty `_Duplicates/` themselves, in Finder or Explorer, after review.
 - Hardlinks are reported as `hardlinked`, not duplicates. Near-duplicates (perceptual hash) are report-only and can never produce Actions.
 
 ## Consequences

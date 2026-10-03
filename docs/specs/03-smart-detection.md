@@ -33,6 +33,12 @@ v0.1 decides everything from the file extension and the mtime year. This spec re
 | `website` | `index.html` plus a sibling `*_files/` directory (a browser "Save page as") | 0.9 | `move_whole` with the HTML |
 | `sidecar group` | Files sharing a stem with known sidecar pairs: `.RAW/.CR2/.NEF/.ARW` + `.xmp` / `.jpg`, `.srt/.vtt` + video, `.cue` + `.bin`, `.shp/.shx/.dbf/.prj` | 0.9 | `move_together` (each member keeps its name and lands in the primary member's target directory) |
 
+**Root and ancestor markers.** Markers are evaluated only for directories *below* the Root (depth ≥ 1). The Root's own markers, and any marker in an ancestor of the Root, are ignored for Unit detection. Examples: a dotfiles `~/.git`, or running inside a project. When the Root or an ancestor carries a marker:
+- `scan` and `plan` add `warning: root_is_project` with the marker list.
+- `apply` refuses unless `--root-is-project-ok` is given (GUI: an explicit confirmation checkbox).
+
+This avoids both failure modes: treating the whole Root as one `keep` Unit, which organizes nothing silently, and organizing a real project's files without warning.
+
 A Unit's descendants are **not** scanned individually. A Unit nested inside another Unit is absorbed into the outer one. Only `stat` totals are gathered (size, member count, newest mtime), for display and dating.
 
 ### 2.2 Unit policies
@@ -58,11 +64,11 @@ The year of a Unit comes from the newest member's resolved date for projects ("l
 
 ### 3.1 Pipeline
 
-1. **Candidates:** Units of kind `file` with `size >= dupes.min_size` (default 1 byte; 0-byte files are grouped separately as "empty files"). Placeholders and protected files are excluded. Files inside Units are **not** included unless `--dupes-include-units`.
+1. **Candidates:** Units of kind `file` with `size >= dupes.min_size` (default 1 byte; 0-byte files are grouped separately as "empty files"). Placeholders are excluded. Files in protected paths and inside Units are included as **reference-only members**. They are hashed so they can be grouped and can be the keeper, but they never receive an Action. Set `dupes.reference_protected = false` to skip hashing them for speed. A group whose members are *all* reference-only is not reported.
 2. **Group by size**, dropping singletons.
 3. **Hardlink fold:** entries sharing `(dev, ino)` are one physical file. They are reported as `hardlinked`, not as duplicates.
 4. **Partial hash:** BLAKE2b-128 of the first 64 KiB, the last 64 KiB and the size. Drop singletons.
-5. **Full hash:** BLAKE2b-256, streamed in 1 MiB chunks, using `hashlib.file_digest` on 3.11+. Threaded with `--jobs`.
+5. **Full hash:** BLAKE2b-256, streamed in 1 MiB chunks, using `hashlib.file_digest`. Threaded with `--jobs`.
 6. **Optional byte compare** (`--paranoid`): `filecmp.cmp(shallow=False)` against the group keeper.
 7. Results are cached in `meta.sqlite` by `(dev, ino, size, mtime_ns)`.
 
@@ -72,7 +78,7 @@ Progress reports bytes hashed against the total candidate bytes. The run is canc
 
 Within each group, rank the members by these rules and suggest the top one as **keeper**. The rest are **extras**.
 
-1. A file inside a protected path or a Unit (it cannot be moved anyway).
+1. A reference-only member (protected path or inside a Unit). It cannot be moved anyway, so another copy is the redundant one.
 2. A file already at its planned target (already organized).
 3. The best name: no ` (1)`, ` copy`, `Copy of`, or `-1` suffix.
 4. The oldest resolved date.
@@ -99,7 +105,7 @@ Perceptual hash (dHash 64-bit) for images. Pairs with a Hamming distance ≤ 6 a
 | # | Source | Applies to | How | Confidence |
 |---|--------|------------|-----|-----------|
 | 1 | `exif` | JPEG, TIFF, HEIC, DNG and RAW | `DateTimeOriginal` (0x9003) → `CreateDate` (0x9004), plus `OffsetTimeOriginal` if present. Built-in parser: JPEG APP1 / TIFF IFD walk (stdlib `struct`). Pillow for HEIC/RAW with `[exif]`. | 0.95 |
-| 2 | `media` | MP4, MOV, M4A, 3GP | `mvhd` creation_time (seconds since 1904-01-01 UTC). Built-in atom walker. `[media]` adds MKV/AVI/audio tags. | 0.85 (0.5 when the value is 0 or 1904) |
+| 2 | `media` | MP4, MOV, M4A, 3GP | `mvhd` creation_time (seconds since 1904-01-01 UTC). Built-in atom walker. `[media]` adds MKV/AVI/audio tags. | 0.85. A value of 0 (1904-01-01) means "not set" and is treated as absent. |
 | 3 | `doc_meta` | PDF, DOCX/XLSX/PPTX, ODT/ODS/ODP, EPUB | PDF: `/CreationDate` in the trailer `Info` dictionary or XMP `xmp:CreateDate` (regex over the first and last 64 KiB). OOXML: `docProps/core.xml` `dcterms:created` (via `zipfile` + `xml.etree`). ODF: `meta.xml` `meta:creation-date`. EPUB: OPF `dc:date`. | 0.8 |
 | 4 | `filename` | any | Patterns, in order: `IMG_YYYYMMDD_HHMMSS`, `VID_…`, `PXL_YYYYMMDD…`, `Screenshot YYYY-MM-DD at …`, `Screen Shot …`, `WhatsApp Image YYYY-MM-DD`, `YYYY-MM-DD`, `YYYY_MM_DD`, `YYYYMMDD` (only with a separator or prefix boundary, and only if month and day are valid) | 0.7 (0.5 for bare `YYYYMMDD`) |
 | 5 | `birthtime` | any | `st_birthtime` (macOS, BSD, Windows 3.12+) | 0.5 |
@@ -144,7 +150,19 @@ The year is the default. The `group_old` decade folding from v0.1 is kept (`grou
 
 ## 6. Expanded taxonomy
 
-The built-in table lives in `taxonomy.py`. Each category has an icon, extensions, sniff types, and optional evidence rules. New categories apply **only with confidence ≥ 0.7**. Otherwise the v0.1 parent category is used, so existing layouts stay stable.
+The built-in table lives in `taxonomy.py`. Each category has an icon, extensions, sniff types, and optional evidence rules.
+
+**Compatibility rule (SPEC § 8).** Two taxonomy versions ship:
+- `taxonomy_version = 1` is the exact v0.1 table.
+- `taxonomy_version = 2` is the table below.
+
+Which version applies to a Root:
+- A Root that already has an OrganEyes layout (any top-level v1 category folder containing `YYYY` or `YYYYs` subfolders, or any run in the index) keeps **v1** until the user opts in with `--taxonomy 2` or the config key. Then the move plan is shown as a one-time "re-sort" preview.
+- New Roots default to **v2**.
+- Within v2, categories that need evidence (Photos, Screenshots, Graphics) apply only with confidence ≥ 0.7. Otherwise the parent category is used.
+- Pure extension splits (Data, Spreadsheets, Presentations, Ebooks, …) apply only under v2.
+
+A file already at its v1 location is never re-planned unless v2 was explicitly chosen.
 
 | Category | Parent (fallback) | Evidence |
 |----------|-------------------|----------|

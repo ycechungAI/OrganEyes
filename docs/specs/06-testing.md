@@ -31,8 +31,9 @@ v0.1 has no tests. Because OrganEyes moves user files, **safety properties are t
 - **Mismatches:** `invoice.pdf` containing `MZ`, `photo.jpg` containing PNG bytes, extension-less ZIP and text files.
 - **Units:** `Foo.app/Contents/Info.plist`, a `proj/` with `.git/HEAD` + `package.json`, `My.photoslibrary/`, `DCIM/100CANON/IMG_0001.JPG`, `page.html` + `page_files/`, and `IMG_1.CR2` + `IMG_1.xmp`.
 - **Links:** a symlink directory pointing at `/` (or at `tmp_path.parent`), a loop `a -> .`, a relative file symlink, an absolute file symlink, and a hardlink pair.
-- **Names:** `...txt`, `   .pdf`, a 300-byte name, `CON.txt`, an NFD `café.txt`, `Photo.JPG` + `photo.jpg` (on case-sensitive FS), and `my_module.py`.
+- **Names:** `   .pdf` (→ hidden in v0.1), `_.pdf` (→ leading space in v0.1), `...txt` (→ `txt`; must keep its name), a 300-byte name, `CON.txt`, an NFD `café.txt`, `Photo.JPG` + `photo.jpg` (on case-sensitive FS), and `my_module.py`.
 - **Duplicates:** three identical 4 MiB files, files with the same size but different content, same-prefix files that differ only in the last 64 KiB, and empty files.
+- **Labeled real-world sample (date metric only):** at least 300 contributor-donated files, stored as *metadata-only* fixtures (EXIF/`mvhd`/doc-metadata blocks plus the file name; pixel data and body text stripped), each with a hand-verified true date. Used only for the SPEC G4 accuracy metric, kept apart from the synthetic unit fixtures.
 - **Self-artifacts:** v0.1 `organizer_rollback_*.json` and `organizer_report.json` in the Root.
 
 ## 4. Key test cases (non-exhaustive)
@@ -67,7 +68,7 @@ v0.1 has no tests. Because OrganEyes moves user files, **safety properties are t
 ## 5. Static checks
 
 - `ruff` (lint), `mypy --strict` on `organeyes/` (types). Stdlib-only import check: a CI job installs the package **without extras** and imports every module.
-- **Mutation-surface lint:** a grep test asserts that `os.rename`, `os.replace`, `os.link`, `os.unlink`, `os.remove`, `os.rmdir`, `shutil.move`, `shutil.rmtree` and `Path.unlink/rename/rmdir` appear only in `fsutil.py`, `execute.py` and `journal.py` (the latter only for its own files). `shutil.rmtree` must not appear anywhere.
+- **Mutation-surface lint:** a grep/AST test asserts that renames (`os.rename`, `os.replace`, `os.link`, `shutil.move`, `Path.rename`) appear only in `fsutil.py`, `execute.py` and `journal.py` (the latter only for its own files). Removals (`os.unlink`, `os.remove`, `os.rmdir`, `Path.unlink`, `Path.rmdir`) appear **only** inside the three sanctioned `fsutil` functions from [ADR-0004](../adr/0004-duplicates-never-deleted.md): `finish_move_unlink_src`, `remove_own_temp` and `rmdir_if_empty_journaled`. `shutil.rmtree` must not appear anywhere.
 - Repo hygiene (B10): CI fails if `git ls-files` matches `organizer_report*.json` or `organizer_rollback_*.json` outside `docs/examples/`.
 
 ## 6. Acceptance criteria per bug
@@ -85,7 +86,7 @@ v0.1 has no tests. Because OrganEyes moves user files, **safety properties are t
 | B09 | integration: two consecutive runs; no OrganEyes artifact is ever planned |
 | B10 | static: repo hygiene check |
 | B11 | unit: hardlink pair is counted once in `total_size`, and `apparent_size` counts both |
-| B12 | security: `GET /api/analyze` → 404 |
+| B12 | security: `GET /api/analyze` **with a valid token** → 404 (without a token it is 401, which proves nothing about the route) |
 | B13 | integration: `serve` from an unrelated Root serves the UI |
 | B14 | security: concurrent apply → 409; job state isolated per job |
 | B15 | integration: a pre-existing empty `Documents/Keep/` survives undo; `--prune-empty-sources` is undone faithfully |
@@ -109,7 +110,7 @@ v0.1 has no tests. Because OrganEyes moves user files, **safety properties are t
 
 | Job | OS | Python | Extras |
 |-----|----|--------|--------|
-| core | ubuntu, macos, windows | 3.9, 3.11, 3.13 | none |
+| core | ubuntu, macos, windows | 3.11, 3.12, 3.13, 3.14 | none |
 | extras | ubuntu, macos | 3.12 | `[all]` (ffprobe installed on ubuntu) |
 | security | ubuntu | 3.12 | none |
 | e2e (v0.4+) | ubuntu | 3.12 | none + Playwright |

@@ -25,7 +25,8 @@ Scope:
 - Events and Reporter in place of prints, CLI subcommands, exit codes: **B28**, **B33**, **B34**, **B35**.
 - Repo hygiene: `git rm --cached organizer_report.json` and a CI guard: **B10**.
 - Test suite and CI matrix ([06](specs/06-testing.md)).
-- Minimal GUI changes needed to keep working: token handling (G-2) and the `action_id`-based rename (G-8).
+- **v1 API hardening (interim, required for B01):** the v1 endpoints stay, but `/api/execute` stops accepting client `suggestions` (paths). It accepts only `{action_ids?[], renames?: {action_id: new_name}, category?, year?}`, resolved against the server-held plan. Every name passes `validate_name()` and every path passes `ensure_contained()` ([05 § 2.4](specs/05-cli-and-api.md#24-v02-interim-v1-api)). API v2 replaces this in v0.4.
+- Minimal GUI changes needed to keep working: token handling (G-2) and the `action_id`-based rename (G-8), both against the interim v1 API.
 
 Exit criteria:
 - All Critical and High tests for B01–B19 pass, plus B26–B28 and B31–B35.
@@ -47,7 +48,7 @@ Scope:
 - Optional extras `[exif]`, `[media]` and `[magic]`, plus `organeyes doctor`.
 
 Exit criteria:
-- Date-source accuracy of at least 95% on the fixture corpus.
+- Date accuracy of at least 90% on the labeled real-world sample ([SPEC G4](SPEC.md#2-goals)), with the `mtime` fallback share reported per file type.
 - Zero Actions planned inside Units.
 - The core CI job passes with no extras installed.
 
@@ -66,7 +67,7 @@ Scope:
 Exit criteria:
 - The E2E suite passes offline.
 - A 5,000-item plan stays responsive.
-- Zero code paths that delete user files (static check).
+- The removal-surface check passes: only the three sanctioned removals in `fsutil.py` ([ADR-0004](adr/0004-duplicates-never-deleted.md)). The content-multiset property test passes with dupes and quarantine enabled.
 
 ## v0.5 — "Asks for help when unsure"
 

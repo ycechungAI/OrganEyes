@@ -9,7 +9,7 @@ v0.1 advertises "No dependencies — uses only Python standard library". It is a
 - The **core** (scan, plan, validate, execute, journal, undo, server, duplicate hashing, built-in sniffing, and the minimal EXIF, `mvhd` and document-metadata parsers) imports **only the standard library**.
 - Richer features are pip **extras**: `[exif]`, `[media]`, `[magic]`, `[ai]` and `[all]`. A capability registry probes them once. A missing extra degrades the feature and adds a `capability_missing` warning. It never raises.
 - The code becomes the `organeyes` package. `file_organizer.py` stays as a shim.
-- The minimum Python version is raised to 3.9.
+- The minimum Python version is raised to 3.11, the oldest supported line that has `tomllib` and `hashlib.file_digest` (3.9 is end-of-life and 3.10 reaches end-of-life in Oct 2026).
 
 ## Consequences
 - **Positive:** the zero-install path still works. The security-critical code has no third-party dependencies. CI can prove the core is stdlib-only.

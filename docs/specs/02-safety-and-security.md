@@ -52,7 +52,12 @@ Out of scope: a local attacker with the same UID (they can already move files), 
 | Free space: the sum of cross-device Action sizes plus 5% must be under `disk_usage(dst_dev).free` | Abort with a message (same-device renames need no space) |
 | Plan is older than `plan_max_age` (default 24 h) | Warn (CLI) or require re-scan (GUI) |
 
-The case-sensitivity probe is a one-time `lstat` of the Root path with its case swapped. If the Root name has no letters, create a probe file in the State dir on the same device. The result is cached per `st_dev`.
+**Case-sensitivity probe.** The probe must test the volume the Root lives on, *inside* the Root, and must not write to the Root during scanning. Procedure:
+1. Pick an existing child entry of the Root whose name contains a letter. `lstat` the case-swapped name inside the Root. If it resolves to the same `(dev, ino)`, the volume is insensitive. If it gives ENOENT, the volume is sensitive.
+2. If the Root has no child with a letter in its name, defer the probe to **execute** time. Inside the journaled run, create `.organeyes-probe-<rand>` in the Root, `lstat` its case-swapped name, then remove it. The probe file is a journaled `mkdir`-style record, so recovery cleans it up.
+3. Until the probe resolves, the validator assumes **insensitive**. Treating names as colliding is the safe default.
+
+The result is cached per `st_dev`. A `dst` directory on a different device than the Root (a mount point inside the Root) is probed separately.
 
 ## 4. Write-ahead journal
 
@@ -69,7 +74,10 @@ Replaces the post-hoc rollback file (B08, B09). Format: [04 § 4](04-data-format
 **Run header and footer:** the first line is `run_start` (Root, plan_id, versions, host, platform). The last line is `run_end` (status `complete|cancelled|aborted`, counts).
 
 **Recovery:** on startup, and before any new apply or undo on that Root, scan for journals without `run_end`.
-- An `intent` without `done` or `failed` is **in doubt**. Resolve it by `lstat`-ing `src` and `dst` and comparing the fingerprint. If it is at `dst`, record `done (recovered)`. If it is at `src`, record `failed (not_started)`. If it is at both or neither, record `conflict` and leave it for the user.
+- An `intent` without `done` or `failed` is **in doubt**. Resolve it by `lstat`-ing `src` and `dst` and comparing the fingerprint. If it is at `dst`, record `done (recovered)`. If it is at `src`, record `failed (not_started)`.
+  - If it is at **both**, and `src` and `dst` share the same `(dev, ino)`, this is the interrupted link-then-unlink fallback (§ 6). Finish the move by unlinking `src` and record `done (recovered)`.
+  - If it is at **both** with different inodes, the state is a partial cross-device copy (only possible at a `.organeyes-partial-*` name) or a real conflict. A partial copy is discarded; anything else is recorded as `conflict`.
+  - If it is at **neither**, record `conflict` and leave it for the user.
 - Then offer two choices: **resume** (continue the remaining Actions of the same plan after re-validation) or **roll back** (undo what was done).
 - The CLI command `organeyes recover` and a GUI banner expose this.
 
@@ -87,7 +95,7 @@ Closes B02, B07 and B15.
   - `symlink_rewrite` restores the old target.
   - `quarantine` reverses like a move.
 - The reverse Plan goes through **the same validation (§ 3) and executor (§ 6)**:
-  - It verifies that the file at `dst` still matches the fingerprint recorded in `done`. Size and `mtime_ns` are compared; `ino` only on the same device.
+  - It verifies that the file at `dst` still matches the **post-move** fingerprint `fp_dst`, which is captured with `lstat(dst)` right after the move and stored in the `done` record. It is not compared against the pre-move source fingerprint, because destination file systems may round timestamps. The comparison uses size plus `ino`, and `mtime_ns` with a tolerance of the destination's timestamp granularity (2 s on FAT/exFAT, 1 s when unknown).
   - It never overwrites. If `src` exists, it records `conflict`. The user can choose `--restore-conflicts-to <dir>`, which puts the item under `_OrganEyes Restored/<run_id>/<original rel path>`.
 - Partial undo: `--only action_id,...` or GUI row selection.
 - Undo itself writes a journal (`kind: undo`, `undoes: run_id`), so an undo can be undone.
@@ -107,7 +115,7 @@ Closes B02, B07 and B15.
   1. Copy to `dst.parent/.<name>.organeyes-partial-<rand>` with `O_EXCL`.
   2. `fsync`.
   3. Compare size and BLAKE2b.
-  4. Preserve mtime, atime, mode and xattrs where possible (`shutil.copystat`).
+  4. Preserve mtime, atime, mode and xattrs where possible (`shutil.copystat`). The destination may round timestamps, so the `done` record stores `fp_dst` from a fresh `lstat` (see § 5).
   5. No-clobber rename of the partial file to `dst`.
   6. `unlink(src)`.
   7. On verify failure, delete **only the partial copy**, which OrganEyes created, and record `failed: EXDEV_VERIFY_FAILED`.
@@ -163,21 +171,27 @@ Protection patterns are **Root-relative, POSIX-style globs** (`fnmatch` per segm
 
 A protected directory is **not descended into** and **never a move target**. Planning a `dst` under a protected path is rejected.
 
-**Defaults** (all `**/`-anchored):
-- VCS: `.git`, `.svn` and `.hg`.
-- Dependency and cache folders: `node_modules`, `__pycache__`, `venv`, `.venv`, `env`, `.tox`, `.gradle` and `target/` when they sit inside a detected project.
-- System and app data: `Library` at the top level only, `Applications`, `.Trash` and `$RECYCLE.BIN`.
-- **Cloud sync roots:** `Dropbox`, `OneDrive*`, `Google Drive`, `iCloud Drive`, `Library/Mobile Documents` and `Library/CloudStorage`.
-- Media libraries: `*.photoslibrary`, `*.musiclibrary`, `Music/Music`, `*.aplibrary` and `*.lrlibrary` / Lightroom catalogs.
-- VM disks: `*.vmwarevm`, `*.pvm`, `*.utm` and `*.vbox` directories.
-- Mail stores: `Library/Mail`.
+**Defaults.** Each pattern is listed exactly as matched. Only names that are unambiguous system or tool folders get `**/`. Common English words are anchored to the top level so that `Projects/Library/` or `Books/Applications/` are **not** protected (the B19 over-matching).
+
+| Group | Patterns |
+|-------|----------|
+| VCS (any depth) | `**/.git`, `**/.svn`, `**/.hg` |
+| Tool caches (any depth) | `**/node_modules`, `**/__pycache__`, `**/.venv`, `**/.tox`, `**/.gradle` |
+| Ambiguous tool names (top level only; inside projects the Unit rule covers them) | `venv`, `env` |
+| System and app data (top level only) | `Library`, `Applications`, `.Trash`, `$RECYCLE.BIN`, `System Volume Information` |
+| Cloud sync roots (top level only) | `Dropbox`, `OneDrive*`, `Google Drive`, `iCloud Drive` |
+| Libraries (any depth, by unambiguous extension) | `**/*.photoslibrary`, `**/*.musiclibrary`, `**/*.aplibrary`, `**/*.lrlibrary`, `**/*.lrdata` |
+| VM disks (any depth) | `**/*.vmwarevm`, `**/*.pvm`, `**/*.utm`, `**/*.vbox` |
+| Media app folders (exact path) | `Music/Music`, `Music/iTunes` |
+
+`Library/Mail`, `Library/Mobile Documents` and `Library/CloudStorage` need no separate entries because `Library` is protected. When the Root is *inside* `~/Library` (the user explicitly points at it), the top-level `Library` pattern no longer applies, and the user takes responsibility.
 
 Hidden entries (dot-prefixed) stay skipped by default (`--include-hidden` to include files only; hidden directories are never descended).
 
 **Legacy mapping:**
 - `--exclude Name` becomes `Name` (top level). A deprecation note explains `**/Name`.
 - `--exclude Parent/Child` becomes the same path, now working at any nesting under the Root.
-- The v0.1 behavior where a bare name matched at any depth is reproduced **only** for `DEFAULT_PROTECTED` names, as explicit `**/` patterns.
+- The v0.1 behavior where a bare name matched at any depth is dropped. `DEFAULT_PROTECTED` is replaced by the defaults table above, which says explicitly which names apply at any depth.
 
 ## 10. Self-exclusion
 

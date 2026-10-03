@@ -115,6 +115,19 @@ Base: `http://127.0.0.1:PORT/api/v2`. Every request needs `Authorization: Bearer
 - Job results larger than 1 MiB (big plans) are stored server-side and fetched through `/plan/{id}` pages, not embedded in the job status.
 - Progress is two-phase for scans: `phase: "walking"` (`total: null`, the UI shows an indeterminate bar) → `"detecting"` → `"planning"`, which have determinate totals.
 
+### 2.4 v0.2 interim v1 API
+
+v0.2 must close B01 before API v2 exists. The v1 endpoints therefore change shape in v0.2, and all of them require the token:
+
+| v1 endpoint | v0.2 behavior |
+|-------------|---------------|
+| `GET /api/analyze` | Removed (B12) |
+| `POST /api/analyze` | Unchanged request. The server stores the resulting Plan and returns `plan_id`. Suggestions in `/api/report` now carry `action_id`. |
+| `POST /api/execute` | Body `{plan_id, action_ids?[], renames?: {action_id: new_name}, category?, year?}`. The old `suggestions` field is **rejected** (400), not ignored. The server builds the paths from its own Plan. |
+| `POST /api/undo` | Body `{run_id}`. `rollback_file` is rejected (B02). |
+| `GET /api/rollbacks` | Returns the run index (same shape as `GET /history`) |
+| `GET /api/progress` | Snapshot of the current job from `JobManager` (B14), instead of the global dict |
+
 ## 3. GUI fix requirements
 
 This is **not** a redesign (that is a non-goal). These are the minimum changes needed to fix the GUI bugs and show the new data.

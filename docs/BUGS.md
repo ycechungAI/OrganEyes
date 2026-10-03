@@ -189,7 +189,7 @@ Severity scale:
 ### B17 — `clean_filename` produces bad names
 - **Where:** FO:121-138.
 - **Scenarios:**
-  - `"...txt"` gives the stem `""`, so the result is `.txt`, a hidden file.
+  - `"   .pdf"` gives the stem `""`, so the result is `.pdf`, a hidden file. `"_.pdf"` becomes `" .pdf"`, with a leading space. (Verified against v0.1. Note that `"...txt"` is **not** a reproducer: `os.path.splitext` ignores leading dots, so it becomes `txt`.)
   - A long name is truncated to `name...` + `.pdf`, giving `name....pdf`.
   - `my_module.py` becomes `my module.py` (code breaks).
   - `CON.txt` and `aux.pdf` are invalid on Windows.
@@ -217,7 +217,7 @@ Severity scale:
   - `Church` matches only a top-level `Church`.
   - `**/Church` matches anywhere.
   - `Work/Clients/*` matches every child of that path.
-  - Legacy bare-name behavior is kept for `DEFAULT_PROTECTED` system names, which are explicitly `**/`.
+  - `DEFAULT_PROTECTED` is replaced by an explicit defaults table. Only unambiguous tool names (`.git`, `node_modules`, …) apply at any depth; words like `Library` and `env` apply at the top level only.
 
 ## Medium / Low
 

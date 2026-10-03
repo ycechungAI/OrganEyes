@@ -167,7 +167,7 @@ One JSON object per line, append-only, at `<StateDir>/runs/<root_hash>/<run_id>.
 {"t":"mkdir","seq":1,"path":"Photos","ts":"…"}
 {"t":"mkdir","seq":2,"path":"Photos/2023","ts":"…"}
 {"t":"intent","seq":3,"action_id":"a_3f0c9e12ab44","op":"move_rename","src":"IMG  0001 .HEIC","dst":"Photos/2023/IMG 0001.HEIC","fp":{"size":2840211,"mtime_ns":1704153600000000000,"ino":81273361},"ts":"…"}
-{"t":"done","seq":4,"action_id":"a_3f0c9e12ab44","final_dst":"Photos/2023/IMG 0001.HEIC","method":"rename","ts":"…"}
+{"t":"done","seq":4,"action_id":"a_3f0c9e12ab44","final_dst":"Photos/2023/IMG 0001.HEIC","method":"rename","fp_dst":{"size":2840211,"mtime_ns":1704153600000000000,"ino":81273361,"dev":16777230},"ts":"…"}
 {"t":"intent","seq":5,"action_id":"a_91aa…","op":"move","src":"locked.docx","dst":"Documents/2024/locked.docx","fp":{"…":"…"},"ts":"…"}
 {"t":"failed","seq":6,"action_id":"a_91aa…","code":"EBUSY","detail":"Resource busy after 3 attempts","ts":"…"}
 {"t":"rmdir","seq":7,"path":"old-empty-folder","reason":"prune_empty_sources","ts":"…"}
@@ -204,7 +204,7 @@ Index writes are atomic (write a temp file, `fsync`, then `os.replace`). The ind
 
 ## 6. Config
 
-`config.toml` (or `.json`). All keys are optional.
+`config.toml` (or `config.json` with the same structure). All keys are optional.
 
 ```toml
 max_depth = 10

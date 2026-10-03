@@ -19,7 +19,7 @@ v0.1 proved the idea. v0.2+ makes it **safe enough to point at a real home direc
 | G1 | **No data loss, ever.** No overwrite, no deletion, no escaping the root. | Every Critical bug in [BUGS.md](BUGS.md) closed, with a regression test for each |
 | G2 | **Every run can be fully undone, even after a crash.** | Crash-injection tests in [06-testing.md](specs/06-testing.md) pass |
 | G3 | **Don't break things that must stay together.** Projects, app bundles and photo libraries move as one unit or not at all. | Bundle and project fixture suite |
-| G4 | **Use the right date**: when the photo was taken or the document was written, not when it was last copied. | Date-source accuracy on a fixture corpus, at least 95% |
+| G4 | **Use the right date**: when the photo was taken or the document was written, not when it was last copied. | Accuracy of at least 90% on a **labeled real-world sample** (≥ 300 anonymized files from contributors' phones, cameras, scanners and downloads, with a hand-verified true date, stored as metadata-only fixtures). Synthetic fixtures are used for unit tests only, not for this metric. Also report the share of files that fall back to `mtime`. |
 | G5 | **Find duplicates** without deleting anything. | Duplicate fixture suite; zero delete code paths |
 | G6 | **Explain every suggestion.** | Every plan action carries `reasons[]` |
 | G7 | **Keep the zero-install promise.** The core runs on Python stdlib alone. Richer features are opt-in extras. | CI job with no third-party packages installed |
@@ -86,7 +86,7 @@ Details: [01-architecture.md](specs/01-architecture.md).
 
 - `python3 file_organizer.py …` keeps working through v0.x as a thin shim over the package. Deprecated flags print a one-line warning ([05-cli-and-api.md § 1.4](specs/05-cli-and-api.md#14-legacy-flag-mapping)).
 - v1 rollback files stay undoable through an import path ([04-data-formats.md § 5](specs/04-data-formats.md#5-legacy-v1-rollback-import)).
-- The default output layout `Category/Year/name` does not change. New categories only appear when their detector applies with high confidence (see [03 § 6](specs/03-smart-detection.md#6-expanded-taxonomy)).
+- The default output layout `Category/Year/name` does not change. A Root already organized by v0.1 keeps the v1 taxonomy until the user opts in. New Roots use taxonomy v2 (see [03 § 6](specs/03-smart-detection.md#6-expanded-taxonomy)).
 
 ## 9. Open questions
 
@@ -94,5 +94,5 @@ Details: [01-architecture.md](specs/01-architecture.md).
 |---|----------|-----------------------|
 | Q1 | Should detected projects move to `Projects/<year>/` or stay in place? | **Stay in place** (`unit_policy = "keep"`) |
 | Q2 | Should we split Images into Photos and Graphics by default? | **Yes**, but only when EXIF evidence exists. Otherwise keep `Images`. |
-| Q3 | Should the minimum Python version rise to 3.9 (for `Path.is_relative_to`, `hashlib.file_digest` backport)? | **Yes**, 3.9. The README must be updated. |
+| Q3 | What should the minimum Python version be? 3.9 is end-of-life (Oct 2025) and 3.10 reaches end-of-life in Oct 2026. | **3.11**: it is supported, and it gives `tomllib`, `hashlib.file_digest` and `Path.is_relative_to` with no fallback code. The README must be updated. |
 | Q4 | Should B10 be fixed with a history rewrite of `organizer_report.json`, or only `git rm --cached`? | `git rm --cached`. The owner decides on the rewrite. |

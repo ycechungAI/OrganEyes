@@ -13,7 +13,7 @@ organeyes/
 ├── __init__.py          # version, public API re-exports
 ├── __main__.py          # `python -m organeyes`
 ├── cli.py               # argparse subcommands → library calls; owns terminal rendering
-├── config.py            # defaults + optional config file loading (stdlib tomllib on 3.11+, JSON fallback)
+├── config.py            # defaults + optional config file loading (stdlib tomllib; JSON also accepted)
 ├── model.py             # dataclasses: Entry, Unit, Classification, ResolvedDate, Action, Plan, RunInfo
 ├── fsutil.py            # containment, name validation, case-sensitivity probe, no-clobber move, placeholders
 ├── scan.py              # read-only walker → Entries (lstat-based, never follows symlinked dirs)
@@ -100,7 +100,7 @@ Field-level detail lives in [04-data-formats.md](04-data-formats.md). The sketch
 The configuration covers only **knobs**, not user rules (the rules engine is a non-goal). It is loaded in this order, where later entries win:
 
 1. Built-in defaults.
-2. `~/.config/organeyes/config.toml` (macOS: `~/Library/Application Support/OrganEyes/config.toml`). JSON is accepted on Python versions without `tomllib`.
+2. `~/.config/organeyes/config.toml` (macOS: `~/Library/Application Support/OrganEyes/config.toml`). A `config.json` with the same keys is also accepted.
 3. `<Root>/.organeyes.toml`.
 4. CLI flags or GUI request fields.
 
@@ -128,4 +128,4 @@ Knobs: `max_depth`, `group_old` + `group_old_years`, `unit_policy`, `symlink_pol
 | Reserved names | `:` is shown as `/` in Finder | `/`, NUL | `CON PRN AUX NUL COM1-9 LPT1-9`, trailing dot or space, `<>:"/\|?*` |
 | State dir | `~/Library/Application Support/OrganEyes` | `$XDG_STATE_HOME/organeyes` or `~/.local/state/organeyes` | `%LOCALAPPDATA%\OrganEyes` |
 
-Minimum Python: **3.9** (SPEC Q3).
+Minimum Python: **3.11** (SPEC Q3).
