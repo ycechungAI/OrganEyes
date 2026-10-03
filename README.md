@@ -208,6 +208,16 @@ Options:
 4. **Keep rollback files** - Don't delete them until you're sure everything is correct
 5. **Use the GUI** - If you're unsure, the web interface is safer and easier
 
+## 🗺️ Design Docs & Roadmap
+
+The next releases (v0.2–v0.5) are specified in [`docs/`](docs/SPEC.md):
+
+- [Master spec](docs/SPEC.md): goals, principles, glossary
+- [Bug & risk audit](docs/BUGS.md): 35 known issues in v0.1, with fixes
+- [Roadmap](docs/ROADMAP.md): safety first (v0.2), then smart detection: bundles and projects, real photo and document dates, content sniffing, duplicates and optional AI classification
+
+> ⚠️ **Security note for v0.1:** `--server` currently listens on all network interfaces without authentication. Only run it on a trusted machine and network, and stop it when you are done. This is fixed in v0.2 (see [BUGS.md B03](docs/BUGS.md#b03--gui-server-exposed-to-lan-and-any-website)).
+
 ## 📄 License
 
 MIT License - Feel free to use, modify, and distribute.
